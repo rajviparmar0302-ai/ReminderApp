@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="24dp">
+    android:padding="20dp">
 
     <EditText
         android:id="@+id/etInterval"
@@ -12,19 +12,25 @@
         android:layout_height="wrap_content"
         android:inputType="number"
         android:hint="@string/enter_interval"
-        android:autofillHints="none" />
+        android:autofillHints="none"
+        android:padding="12dp"
+        android:textSize="16sp"/>
+
+
 
     <Button
-        android:id="@+id/btnStart"
+        android:id="@+id/startReminder"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/start_reminder"
-        android:layout_marginTop="16dp" />
+        android:text="Start Reminder"
+        android:padding="12dp"
+        android:layout_marginBottom="20dp"/>
 
     <Button
-        android:id="@+id/btnStop"
+        android:id="@+id/stopReminder"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/stop_reminder"
-        android:layout_marginTop="16dp" />
+        android:text="Stop Reminder"
+        android:padding="12dp"/>
+
 </LinearLayout>

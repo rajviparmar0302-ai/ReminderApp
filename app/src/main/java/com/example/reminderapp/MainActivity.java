@@ -1,11 +1,9 @@
 package com.example.reminderapp;
 
-import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
@@ -16,13 +14,12 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int REMINDER_REQ_CODE = 1010;
-
+    private AlarmManager alarmManager;
+    private PendingIntent pendingIntent;
     private EditText etInterval;
     private Button btnStart, btnStop;
 
-    private AlarmManager alarmManager;
-    private PendingIntent alarmIntent;
+    private static final int REMINDER_REQUEST_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,84 +27,71 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         etInterval = findViewById(R.id.etInterval);
-        btnStart = findViewById(R.id.btnStart);
-        btnStop  = findViewById(R.id.btnStop);
+        btnStart = findViewById(R.id.startReminder);
+        btnStop = findViewById(R.id.stopReminder);
 
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-        // Ask for notification permission on Android
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 900);
-            }
-        }
+        Intent intent = new Intent(this, ReminderReceiver.class);
+        pendingIntent = PendingIntent.getBroadcast(
+                this,
+                REMINDER_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
 
         btnStart.setOnClickListener(v -> startReminder());
         btnStop.setOnClickListener(v -> stopReminder());
     }
 
     private void startReminder() {
-        String input = etInterval.getText().toString().trim();
-        if (input.isEmpty()) {
-            Toast.makeText(this, getString(R.string.please_enter_interval), Toast.LENGTH_SHORT).show();
+        String intervalText = etInterval.getText().toString().trim();
+
+        if (intervalText.isEmpty()) {
+            Toast.makeText(this, "Please enter interval in minutes", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        int intervalMinutes;
+        int intervalMinutes = Integer.parseInt(intervalText);
+        long triggerTime = System.currentTimeMillis() + (intervalMinutes * 60L * 1000L);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                scheduleAlarm(triggerTime);
+            } else {
+                Toast.makeText(this, "Exact alarms not permitted. Enable in settings.", Toast.LENGTH_LONG).show();
+            }
+        } else {
+            scheduleAlarm(triggerTime);
+        }
+    }
+
+    private void scheduleAlarm(long triggerTime) {
         try {
-            intervalMinutes = Integer.parseInt(input);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, getString(R.string.invalid_number), Toast.LENGTH_SHORT).show();
-            return;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                );
+            } else {
+                alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                );
+            }
+
+            Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
+        } catch (SecurityException e) {
+            Toast.makeText(this, "Permission denied for exact alarms", Toast.LENGTH_SHORT).show();
         }
-
-        if (intervalMinutes <= 0) {
-            Toast.makeText(this, getString(R.string.interval_must_be_gt_zero), Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        long intervalMs = intervalMinutes * 60_000L;
-
-        Intent intent = new Intent(this, ReminderReceiver.class);
-        alarmIntent = PendingIntent.getBroadcast(
-                this,
-                REMINDER_REQ_CODE,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        // Cancel any existing alarm first
-        alarmManager.cancel(alarmIntent);
-
-        long firstTrigger = System.currentTimeMillis() + intervalMs;
-
-        // Repeating alarm (may be inexact during Doze; fine for simple reminders)
-        alarmManager.setRepeating(
-                AlarmManager.RTC_WAKEUP,
-                firstTrigger,
-                intervalMs,
-                alarmIntent
-        );
-
-        Toast.makeText(this,
-                getString(R.string.reminder_started, intervalMinutes),
-                Toast.LENGTH_SHORT).show();
     }
 
     private void stopReminder() {
-        if (alarmIntent == null) {
-            // recreate the same PendingIntent so cancel works even after process death
-            Intent intent = new Intent(this, ReminderReceiver.class);
-            alarmIntent = PendingIntent.getBroadcast(
-                    this,
-                    REMINDER_REQ_CODE,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+        if (alarmManager != null) {
+            alarmManager.cancel(pendingIntent);
+            Toast.makeText(this, "Reminder stopped", Toast.LENGTH_SHORT).show();
         }
-        alarmManager.cancel(alarmIntent);
-        alarmIntent.cancel();
-        Toast.makeText(this, R.string.reminder_stopped, Toast.LENGTH_SHORT).show();
     }
 }
