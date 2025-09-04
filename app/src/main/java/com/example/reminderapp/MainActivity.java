@@ -1,5 +1,4 @@
 package com.example.reminderapp;
-
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -24,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main); // Your reminder XML
 
         etInterval = findViewById(R.id.etInterval);
         btnStart = findViewById(R.id.startReminder);
@@ -55,37 +54,21 @@ public class MainActivity extends AppCompatActivity {
         int intervalMinutes = Integer.parseInt(intervalText);
         long triggerTime = System.currentTimeMillis() + (intervalMinutes * 60L * 1000L);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (alarmManager.canScheduleExactAlarms()) {
-                scheduleAlarm(triggerTime);
-            } else {
-                Toast.makeText(this, "Exact alarms not permitted. Enable in settings.", Toast.LENGTH_LONG).show();
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+            );
         } else {
-            scheduleAlarm(triggerTime);
+            alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+            );
         }
-    }
 
-    private void scheduleAlarm(long triggerTime) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                );
-            } else {
-                alarmManager.setExact(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerTime,
-                        pendingIntent
-                );
-            }
-
-            Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
-        } catch (SecurityException e) {
-            Toast.makeText(this, "Permission denied for exact alarms", Toast.LENGTH_SHORT).show();
-        }
+        Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
     }
 
     private void stopReminder() {

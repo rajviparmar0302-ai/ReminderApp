@@ -3,34 +3,31 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
     android:padding="20dp">
 
     <EditText
         android:id="@+id/etInterval"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="300dp"
+        android:layout_height="50dp"
+        android:hint="@string/enter_interval_in_minutes"
         android:inputType="number"
-        android:hint="@string/enter_interval"
-        android:autofillHints="none"
-        android:padding="12dp"
-        android:textSize="16sp"/>
-
-
+        android:autofillHints="enter interval in minutes"/>
 
     <Button
         android:id="@+id/startReminder"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:text="Start Reminder"
-        android:padding="12dp"
-        android:layout_marginBottom="20dp"/>
+        android:text="@string/start_reminder"
+        android:layout_marginTop="16dp" />
 
     <Button
         android:id="@+id/stopReminder"
-        android:layout_width="wrap_content"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:text="Stop Reminder"
-        android:padding="12dp"/>
+        android:text="@string/stop_reminder"
+        android:layout_marginTop="8dp" />
 
 </LinearLayout>
+
+
+
