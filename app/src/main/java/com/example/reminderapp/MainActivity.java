@@ -1,113 +1,217 @@
 package com.example.reminderapp;
 
-import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Toast;
+import android.net.Uri;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.navigation.internal.Log;
+
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import android.widget.ArrayAdapter;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int REMINDER_REQ_CODE = 1010;
-
+    private AlarmManager alarmManager;
+    private PendingIntent pendingIntent;
     private EditText etInterval;
     private Button btnStart, btnStop;
+    private FirebaseAuth mAuth;
+    private DatabaseReference databaseRef;
+    private ListView listViewReminders;
+    private ArrayList<String> reminders;
+    private ArrayAdapter<String> adapter;
 
-    private AlarmManager alarmManager;
-    private PendingIntent alarmIntent;
+    private static final int REMINDER_REQUEST_CODE = 100;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mAuth = FirebaseAuth.getInstance();
+
         etInterval = findViewById(R.id.etInterval);
-        btnStart = findViewById(R.id.btnStart);
-        btnStop  = findViewById(R.id.btnStop);
+        btnStart = findViewById(R.id.startReminder);
+        btnStop = findViewById(R.id.stopReminder);
+        listViewReminders = findViewById(R.id.listViewReminders);
+
+        // Initialize ArrayList & Adapter
+        reminders = new ArrayList<>();
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, reminders);
+        listViewReminders.setAdapter(adapter);
 
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-        // Ask for notification permission on Android
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 900);
-            }
-        }
-
-        btnStart.setOnClickListener(v -> startReminder());
-        btnStop.setOnClickListener(v -> stopReminder());
-    }
-
-    private void startReminder() {
-        String input = etInterval.getText().toString().trim();
-        if (input.isEmpty()) {
-            Toast.makeText(this, getString(R.string.please_enter_interval), Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        int intervalMinutes;
-        try {
-            intervalMinutes = Integer.parseInt(input);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, getString(R.string.invalid_number), Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (intervalMinutes <= 0) {
-            Toast.makeText(this, getString(R.string.interval_must_be_gt_zero), Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        long intervalMs = intervalMinutes * 60_000L;
-
         Intent intent = new Intent(this, ReminderReceiver.class);
-        alarmIntent = PendingIntent.getBroadcast(
+        pendingIntent = PendingIntent.getBroadcast(
                 this,
-                REMINDER_REQ_CODE,
+                REMINDER_REQUEST_CODE,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Cancel any existing alarm first
-        alarmManager.cancel(alarmIntent);
+        btnStart.setOnClickListener(v -> startReminder());
+        btnStop.setOnClickListener(v -> stopReminder());
 
-        long firstTrigger = System.currentTimeMillis() + intervalMs;
+        // Setup Realtime Database Reference
+        FirebaseUser user = mAuth.getCurrentUser();
+        if (user != null) {
+//            mDatabase = FirebaseDatabase.getInstance().getReference();
 
-        // Repeating alarm (may be inexact during Doze; fine for simple reminders)
+//            Map<String, Object> updates = new HashMap<>();
+//            updates.put("name", user.getDisplayName());
+//            updates.put("email", user.getEmail());
+//
+//            FirebaseDatabase.getInstance().getReference().child("users")
+//                    .child(user.getUid())
+//                    .child("userDetails")
+//                    .updateChildren(updates);
+            databaseRef = FirebaseDatabase.getInstance().getReference("users")
+                    .child(user.getUid())
+                    .child("reminders");
+
+            loadReminderHistory();
+        } else {
+            Toast.makeText(this, "User not signed in!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startReminder() {
+        String intervalText = etInterval.getText().toString().trim();
+
+        if (intervalText.isEmpty()) {
+            Toast.makeText(this, "Please enter interval in minutes", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int intervalMinutes = Integer.parseInt(intervalText);
+        long intervalMilli = intervalMinutes * 60L * 1000L;
+        long triggerTime = System.currentTimeMillis() + (intervalMilli);
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    setExactAlarm(triggerTime, intervalMilli);
+                } else {
+                    Toast.makeText(this, "Enable exact alarms in settings.", Toast.LENGTH_LONG).show();
+                    Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                }
+            } else {
+                setExactAlarm(triggerTime, intervalMilli);
+            }
+
+            saveReminderToRealtimeDB(intervalMinutes, triggerTime);
+
+        } catch (SecurityException e) {
+            Toast.makeText(this, "Permission denied for exact alarms", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void setExactAlarm(long triggerTime, long intervalMilli) {
         alarmManager.setRepeating(
                 AlarmManager.RTC_WAKEUP,
-                firstTrigger,
-                intervalMs,
-                alarmIntent
+                triggerTime,
+                intervalMilli,
+                pendingIntent
         );
 
-        Toast.makeText(this,
-                getString(R.string.reminder_started, intervalMinutes),
-                Toast.LENGTH_SHORT).show();
+
+
+        Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveReminderToRealtimeDB(int intervalMinutes, long triggerTime) {
+        FirebaseUser user = mAuth.getCurrentUser();
+        if (user == null || databaseRef == null) return;
+//        try {
+//            mDatabase.child("test").setValue(user);
+//        } catch (Exception e) {
+//            Toast.makeText(this, "Test save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+//        }
+        String reminderId = databaseRef.push().getKey();
+
+        Map<String, Object> reminder = new HashMap<>();
+        reminder.put("intervalMinutes", intervalMinutes);
+        reminder.put("triggerTime", triggerTime);
+
+        if (reminderId != null) {
+            databaseRef.child(reminderId).setValue(reminder)
+                    .addOnSuccessListener(aVoid ->
+                            Toast.makeText(this, "Reminder saved!", Toast.LENGTH_SHORT).show()
+                    )
+                    .addOnFailureListener(e ->
+                            Toast.makeText(this, "Failed to save reminder", Toast.LENGTH_SHORT).show()
+                    );
+        }
     }
 
     private void stopReminder() {
-        if (alarmIntent == null) {
-            // recreate the same PendingIntent so cancel works even after process death
-            Intent intent = new Intent(this, ReminderReceiver.class);
-            alarmIntent = PendingIntent.getBroadcast(
-                    this,
-                    REMINDER_REQ_CODE,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+        if (alarmManager != null) {
+            alarmManager.cancel(pendingIntent);
+            Toast.makeText(this, "Reminder stopped", Toast.LENGTH_SHORT).show();
+//
+//            FirebaseUser user = mAuth.getCurrentUser();
+//            if (user != null && databaseRef != null) {
+//                String reminderId = databaseRef.push().getKey();
+//                Map<String, Object> reminder = new HashMap<>();
+//                reminder.put("action", "Reminder stopped");
+//                reminder.put("timestamp", System.currentTimeMillis());
+//
+//                if (reminderId != null) {
+//                    databaseRef.child(reminderId).setValue(reminder);
+//                }
+//            }
+//        }
         }
-        alarmManager.cancel(alarmIntent);
-        alarmIntent.cancel();
-        Toast.makeText(this, R.string.reminder_stopped, Toast.LENGTH_SHORT).show();
+    }
+
+    private void loadReminderHistory() {
+        if (databaseRef == null) return;
+
+        databaseRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                reminders.clear();
+                for (DataSnapshot doc : snapshot.getChildren()) {
+
+                    Long triggerTime = doc.child("triggerTime").getValue(Long.class);
+                    Integer intervalMinutes = doc.child("intervalMinutes").getValue(Integer.class);
+
+                    if (triggerTime != null && intervalMinutes != null) {
+                        reminders.add("Reminder: " + intervalMinutes + " min, at " + new Date(triggerTime));
+                        }
+                    }
+                    adapter.notifyDataSetChanged();
+                }
+
+                @Override
+                public void onCancelled(DatabaseError error) {
+                    Toast.makeText(MainActivity.this, "Failed to load reminders", Toast.LENGTH_SHORT).show();
+                }
+        });
     }
 }
