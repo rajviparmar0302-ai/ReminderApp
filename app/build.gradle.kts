@@ -58,7 +58,15 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     implementation("com.google.firebase:firebase-auth:22.3.1")
+    // Import the BoM for the Firebase platform
+    implementation(platform("com.google.firebase:firebase-bom:34.2.0"))
 
+    // Add the dependency for the Realtime Database library
+    // When using the BoM, you don't specify versions in Firebase library dependencies
+    implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-database:20.3.0")
+//    implementation platform('com.google.firebase:firebase-bom:32.7.2')
+//    implementation ('com.google.firebase:firebase-auth')
 
 
 }

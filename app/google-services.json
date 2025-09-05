@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "615936797641",
+    "firebase_url": "https://reminderapp-7d636-default-rtdb.firebaseio.com",
     "project_id": "reminderapp-7d636",
     "storage_bucket": "reminderapp-7d636.firebasestorage.app"
   },
