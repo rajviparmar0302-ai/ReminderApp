@@ -107,12 +107,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         int intervalMinutes = Integer.parseInt(intervalText);
-        long triggerTime = System.currentTimeMillis() + (intervalMinutes * 60L * 1000L);
+        long intervalMilli = intervalMinutes * 60L * 1000L;
+        long triggerTime = System.currentTimeMillis() + (intervalMilli);
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
-                    setExactAlarm(triggerTime);
+                    setExactAlarm(triggerTime, intervalMilli);
                 } else {
                     Toast.makeText(this, "Enable exact alarms in settings.", Toast.LENGTH_LONG).show();
                     Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
@@ -120,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
                     startActivity(intent);
                 }
             } else {
-                setExactAlarm(triggerTime);
+                setExactAlarm(triggerTime, intervalMilli);
             }
 
             saveReminderToRealtimeDB(intervalMinutes, triggerTime);
@@ -130,20 +131,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void setExactAlarm(long triggerTime) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-            );
-        } else {
-            alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-            );
-        }
+    private void setExactAlarm(long triggerTime, long intervalMilli) {
+        alarmManager.setRepeating(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                intervalMilli,
+                pendingIntent
+        );
+
+
+
         Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
     }
 
@@ -176,6 +173,19 @@ public class MainActivity extends AppCompatActivity {
         if (alarmManager != null) {
             alarmManager.cancel(pendingIntent);
             Toast.makeText(this, "Reminder stopped", Toast.LENGTH_SHORT).show();
+//
+//            FirebaseUser user = mAuth.getCurrentUser();
+//            if (user != null && databaseRef != null) {
+//                String reminderId = databaseRef.push().getKey();
+//                Map<String, Object> reminder = new HashMap<>();
+//                reminder.put("action", "Reminder stopped");
+//                reminder.put("timestamp", System.currentTimeMillis());
+//
+//                if (reminderId != null) {
+//                    databaseRef.child(reminderId).setValue(reminder);
+//                }
+//            }
+//        }
         }
     }
 
@@ -193,15 +203,15 @@ public class MainActivity extends AppCompatActivity {
 
                     if (triggerTime != null && intervalMinutes != null) {
                         reminders.add("Reminder: " + intervalMinutes + " min, at " + new Date(triggerTime));
+                        }
                     }
+                    adapter.notifyDataSetChanged();
                 }
-                adapter.notifyDataSetChanged();
-            }
 
-            @Override
-            public void onCancelled(DatabaseError error) {
-                Toast.makeText(MainActivity.this, "Failed to load reminders", Toast.LENGTH_SHORT).show();
-            }
+                @Override
+                public void onCancelled(DatabaseError error) {
+                    Toast.makeText(MainActivity.this, "Failed to load reminders", Toast.LENGTH_SHORT).show();
+                }
         });
     }
 }
