@@ -10,6 +10,7 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         tools:ignore="ExactAlarm" />
 
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_reminder_logo"

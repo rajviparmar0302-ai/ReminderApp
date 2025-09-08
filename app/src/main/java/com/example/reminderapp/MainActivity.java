@@ -39,6 +39,7 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.material.navigation.NavigationView;
+import android.content.pm.PackageManager;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,6 +47,7 @@ import java.util.HashMap;
 import java.util.Map;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
+import android.os.Bundle;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -63,12 +65,14 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseUser user;
 
 
+
     private static final int REMINDER_REQUEST_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
 
         mAuth = FirebaseAuth.getInstance();
         user = mAuth.getCurrentUser();
@@ -97,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
 
         btnStart.setOnClickListener(v -> startReminder());
         btnStop.setOnClickListener(v -> stopReminder());
+
 
         if (user != null) {
             // Toolbar setup
@@ -131,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
                     selectedFragment = new SettingsFragment();
                 } else if (id == R.id.nav_about) {
                     selectedFragment = new AboutFragment();
+
                 } else if (id == R.id.nav_logout) {
                     Toast.makeText(this, "Logout clicked", Toast.LENGTH_SHORT).show();
                     drawerLayout.closeDrawers();
@@ -163,7 +169,12 @@ public class MainActivity extends AppCompatActivity {
                         .placeholder(R.drawable.ic_user_placeholder) // add a default placeholder in drawable
                         .into(userImage);
             }
-
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 101);
+                }
+            }
             // Handle menu item clicks
             navigationView.setNavigationItemSelectedListener(item -> {
                 if (item.getItemId() == R.id.nav_logout) {
