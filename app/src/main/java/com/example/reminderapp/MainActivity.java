@@ -4,17 +4,27 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
-import android.net.Uri;
 
+
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.navigation.internal.Log;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
+import com.bumptech.glide.Glide;
+import com.google.android.material.navigation.NavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
@@ -23,12 +33,19 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+
+import com.google.android.material.navigation.NavigationView;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import android.widget.ArrayAdapter;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -41,9 +58,12 @@ public class MainActivity extends AppCompatActivity {
     private ListView listViewReminders;
     private ArrayList<String> reminders;
     private ArrayAdapter<String> adapter;
+    private DrawerLayout drawerLayout;
+    private NavigationView navigationView;
+    private FirebaseUser user;
+
 
     private static final int REMINDER_REQUEST_CODE = 100;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,11 +71,14 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mAuth = FirebaseAuth.getInstance();
+        user = mAuth.getCurrentUser();
 
         etInterval = findViewById(R.id.etInterval);
         btnStart = findViewById(R.id.startReminder);
         btnStop = findViewById(R.id.stopReminder);
         listViewReminders = findViewById(R.id.listViewReminders);
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
 
         // Initialize ArrayList & Adapter
         reminders = new ArrayList<>();
@@ -75,19 +98,85 @@ public class MainActivity extends AppCompatActivity {
         btnStart.setOnClickListener(v -> startReminder());
         btnStop.setOnClickListener(v -> stopReminder());
 
-        // Setup Realtime Database Reference
-        FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
-//            mDatabase = FirebaseDatabase.getInstance().getReference();
+            // Toolbar setup
+            Toolbar toolbar = findViewById(R.id.toolbar);
+            setSupportActionBar(toolbar);
 
-//            Map<String, Object> updates = new HashMap<>();
-//            updates.put("name", user.getDisplayName());
-//            updates.put("email", user.getEmail());
+            ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                    this,
+                    drawerLayout,
+                    toolbar,
+                    R.string.open,
+                    R.string.close
+            );
+            drawerLayout.addDrawerListener(toggle);
+            toggle.syncState();
+            DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
+            NavigationView navigationView = findViewById(R.id.nav_view);
+//            MaterialToolbar topAppBar = findViewById(R.id.topAppBar);
 //
-//            FirebaseDatabase.getInstance().getReference().child("users")
-//                    .child(user.getUid())
-//                    .child("userDetails")
-//                    .updateChildren(updates);
+//            topAppBar.setNavigationOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+
+//            NavigationView navigationView = findViewById(R.id.navigation_view);
+            navigationView.setNavigationItemSelectedListener(item -> {
+                Fragment selectedFragment = null;
+
+                int id = item.getItemId();
+                if (id == R.id.nav_home) {
+                    selectedFragment = new HomeFragment();
+                } else if (id == R.id.nav_profile) {
+                    selectedFragment = new ProfileFragment();
+                } else if (id == R.id.nav_settings) {
+                    selectedFragment = new SettingsFragment();
+                } else if (id == R.id.nav_about) {
+                    selectedFragment = new AboutFragment();
+                } else if (id == R.id.nav_logout) {
+                    Toast.makeText(this, "Logout clicked", Toast.LENGTH_SHORT).show();
+                    drawerLayout.closeDrawers();
+                    return true;
+                }
+
+                if (selectedFragment != null) {
+                    FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+                    transaction.replace(R.id.content_frame, selectedFragment);
+                    transaction.commit();
+                }
+
+                drawerLayout.closeDrawers();
+                return true;
+            });
+
+
+            // Set user details in header
+            View headerView = navigationView.getHeaderView(0);
+            TextView userName = headerView.findViewById(R.id.userName);
+            TextView userEmail = headerView.findViewById(R.id.userEmail);
+            ImageView userImage = headerView.findViewById(R.id.userImage);
+
+            userName.setText(user.getDisplayName() != null ? user.getDisplayName() : "No Name");
+            userEmail.setText(user.getEmail());
+
+            if (user.getPhotoUrl() != null) {
+                Glide.with(this)
+                        .load(user.getPhotoUrl())
+                        .placeholder(R.drawable.ic_user_placeholder) // add a default placeholder in drawable
+                        .into(userImage);
+            }
+
+            // Handle menu item clicks
+            navigationView.setNavigationItemSelectedListener(item -> {
+                if (item.getItemId() == R.id.nav_logout) {
+                    mAuth.signOut();
+                    Intent i = new Intent(MainActivity.this, LoginActivity.class);
+                    startActivity(i);
+                    finish();
+                }
+                drawerLayout.closeDrawer(GravityCompat.START);
+                return true;
+            });
+
+            // Firebase database
             databaseRef = FirebaseDatabase.getInstance().getReference("users")
                     .child(user.getUid())
                     .child("reminders");
@@ -108,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
 
         int intervalMinutes = Integer.parseInt(intervalText);
         long intervalMilli = intervalMinutes * 60L * 1000L;
-        long triggerTime = System.currentTimeMillis() + (intervalMilli);
+        long triggerTime = System.currentTimeMillis() + intervalMilli;
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -138,20 +227,12 @@ public class MainActivity extends AppCompatActivity {
                 intervalMilli,
                 pendingIntent
         );
-
-
-
         Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
     }
 
     private void saveReminderToRealtimeDB(int intervalMinutes, long triggerTime) {
-        FirebaseUser user = mAuth.getCurrentUser();
         if (user == null || databaseRef == null) return;
-//        try {
-//            mDatabase.child("test").setValue(user);
-//        } catch (Exception e) {
-//            Toast.makeText(this, "Test save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-//        }
+
         String reminderId = databaseRef.push().getKey();
 
         Map<String, Object> reminder = new HashMap<>();
@@ -173,19 +254,6 @@ public class MainActivity extends AppCompatActivity {
         if (alarmManager != null) {
             alarmManager.cancel(pendingIntent);
             Toast.makeText(this, "Reminder stopped", Toast.LENGTH_SHORT).show();
-//
-//            FirebaseUser user = mAuth.getCurrentUser();
-//            if (user != null && databaseRef != null) {
-//                String reminderId = databaseRef.push().getKey();
-//                Map<String, Object> reminder = new HashMap<>();
-//                reminder.put("action", "Reminder stopped");
-//                reminder.put("timestamp", System.currentTimeMillis());
-//
-//                if (reminderId != null) {
-//                    databaseRef.child(reminderId).setValue(reminder);
-//                }
-//            }
-//        }
         }
     }
 
@@ -197,21 +265,20 @@ public class MainActivity extends AppCompatActivity {
             public void onDataChange(DataSnapshot snapshot) {
                 reminders.clear();
                 for (DataSnapshot doc : snapshot.getChildren()) {
-
                     Long triggerTime = doc.child("triggerTime").getValue(Long.class);
                     Integer intervalMinutes = doc.child("intervalMinutes").getValue(Integer.class);
 
                     if (triggerTime != null && intervalMinutes != null) {
                         reminders.add("Reminder: " + intervalMinutes + " min, at " + new Date(triggerTime));
-                        }
                     }
-                    adapter.notifyDataSetChanged();
                 }
+                adapter.notifyDataSetChanged();
+            }
 
-                @Override
-                public void onCancelled(DatabaseError error) {
-                    Toast.makeText(MainActivity.this, "Failed to load reminders", Toast.LENGTH_SHORT).show();
-                }
+            @Override
+            public void onCancelled(DatabaseError error) {
+                Toast.makeText(MainActivity.this, "Failed to load reminders", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 }
