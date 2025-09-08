@@ -6,4 +6,19 @@
     </style>
 
     <style name="Theme.ReminderApp" parent="Base.Theme.ReminderApp" />
+
+
+    <!-- Normal App Theme -->
+    <style name="Theme.ReminderApp." parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Customize your app theme here -->
+    </style>
+
+    <!-- Splash Theme -->
+    <style name="Theme.ReminderApp.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_inset</item>
+        <item name="postSplashScreenTheme">@style/Theme.ReminderApp</item>
+    </style>
+
+
 </resources>
