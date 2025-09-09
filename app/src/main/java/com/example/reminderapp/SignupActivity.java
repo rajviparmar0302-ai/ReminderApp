@@ -28,16 +28,16 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 
-public class LoginActivity extends AppCompatActivity {
+public class SignupActivity extends AppCompatActivity {
 
-    private static final String TAG = "LoginActivity";
+    private static final String TAG = "SignupActivity";
     private static final int RC_SIGN_IN = 9001;
 
     // UI components
     private TextInputLayout tilEmail, tilPassword;
     private TextInputEditText etEmail, etPassword;
-    private MaterialButton btnLogin, btnGoogleSignIn;
-    private TextView tvForgotPassword, tvSignup;
+    private MaterialButton btnSignUp, btnGoogleSignIn;
+    private TextView  tvSignin;
 
     // Firebase Auth
     private FirebaseAuth mAuth;
@@ -46,7 +46,7 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
+        setContentView(R.layout.activity_signup);
 
         initializeViews();
         setupFirebaseAuth();
@@ -59,10 +59,9 @@ public class LoginActivity extends AppCompatActivity {
         tilPassword = findViewById(R.id.til_password);
         etEmail = findViewById(R.id.et_email);
         etPassword = findViewById(R.id.et_password);
-        btnLogin = findViewById(R.id.btn_login);
+        btnSignUp = findViewById(R.id.btn_signup);
         btnGoogleSignIn = findViewById(R.id.btn_google_signin);
-        tvForgotPassword = findViewById(R.id.tv_forgot_password);
-        tvSignup = findViewById(R.id.tv_signup);
+        tvSignin = findViewById(R.id.tv_signin);
     }
 
     private void setupFirebaseAuth() {
@@ -78,7 +77,7 @@ public class LoginActivity extends AppCompatActivity {
     private void setupGoogleSignIn() {
         // Configure Google Sign In
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken(getString(R.string.default_web_client_id)) // You need to add this to strings.xml
+                .requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
                 .build();
 
@@ -86,7 +85,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        btnLogin.setOnClickListener(new View.OnClickListener() {
+        btnSignUp.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 loginWithEmail();
@@ -100,17 +99,12 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
-        tvForgotPassword.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                handleForgotPassword();
-            }
-        });
 
-        tvSignup.setOnClickListener(new View.OnClickListener() {
+
+        tvSignin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                navigateToSignUpActivity();
+                navigateToSignInActivity();
             }
         });
     }
@@ -129,29 +123,29 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         // Show loading state
-        btnLogin.setEnabled(false);
-        btnLogin.setText("Signing in...");
+        btnSignUp.setEnabled(false);
+        btnSignUp.setText("Signing up...");
 
         // Authenticate with Firebase
-        mAuth.signInWithEmailAndPassword(email, password)
+        mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
-                        btnLogin.setEnabled(true);
-                        btnLogin.setText("LOGIN");
+                        btnSignUp.setEnabled(true);
+                        btnSignUp.setText("SignUp");
 
                         if (task.isSuccessful()) {
-                            Log.d(TAG, "signInWithEmail:success");
+                            Log.d(TAG, "signUpWithEmail:success");
                             FirebaseUser user = mAuth.getCurrentUser();
-                            Toast.makeText(LoginActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(SignupActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
                             navigateToMainActivity();
                         } else {
-                            Log.w(TAG, "signInWithEmail:failure", task.getException());
+                            Log.w(TAG, "signUpWithEmail:failure", task.getException());
                             String errorMessage = "Authentication failed.";
                             if (task.getException() != null) {
                                 errorMessage = task.getException().getMessage();
                             }
-                            Toast.makeText(LoginActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                            Toast.makeText(SignupActivity.this, errorMessage, Toast.LENGTH_LONG).show();
                         }
                     }
                 });
@@ -210,55 +204,27 @@ public class LoginActivity extends AppCompatActivity {
                         if (task.isSuccessful()) {
                             Log.d(TAG, "signInWithCredential:success");
                             FirebaseUser user = mAuth.getCurrentUser();
-                            Toast.makeText(LoginActivity.this, "Google sign in successful!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(SignupActivity.this, "Google sign in successful!", Toast.LENGTH_SHORT).show();
                             navigateToMainActivity();
                         } else {
                             Log.w(TAG, "signInWithCredential:failure", task.getException());
-                            Toast.makeText(LoginActivity.this, "Authentication Failed.", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(SignupActivity.this, "Authentication Failed.", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
     }
 
-    private void handleForgotPassword() {
-        String email = etEmail.getText().toString().trim();
 
-        if (TextUtils.isEmpty(email)) {
-            tilEmail.setError("Please enter your email address");
-            return;
-        }
-
-        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            tilEmail.setError("Please enter a valid email address");
-            return;
-        }
-
-        mAuth.sendPasswordResetEmail(email)
-                .addOnCompleteListener(new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        if (task.isSuccessful()) {
-                            Toast.makeText(LoginActivity.this,
-                                    "Password reset email sent to " + email,
-                                    Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(LoginActivity.this,
-                                    "Failed to send password reset email",
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
-    }
 
     private void navigateToMainActivity() {
-        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        Intent intent = new Intent(SignupActivity.this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
     }
 
-    private void navigateToSignUpActivity() {
-        Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
+    private void navigateToSignInActivity() {
+        Intent intent = new Intent(SignupActivity.this, LoginActivity.class);
         startActivity(intent);
     }
 
