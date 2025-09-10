@@ -67,6 +67,12 @@
         <receiver
             android:name=".SnoozeReceiver"
             android:exported="true" />
+
+        <receiver
+            android:name=".CompleteReceiver"
+            android:exported="true" />
+
+
     </application>
 
 </manifest>

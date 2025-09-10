@@ -101,7 +101,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         snoozeIntent.putExtra("intervalMinutes", intervalMinutes);
         PendingIntent snoozePendingIntent = PendingIntent.getBroadcast(
                 context,
-                1,
+                0,
                 snoozeIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -110,7 +110,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         Intent completeIntent = new Intent(context, CompleteReceiver.class);
         PendingIntent completePendingIntent = PendingIntent.getBroadcast(
                 context,
-                2,
+                0,
                 completeIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -120,7 +120,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Reminder")
                 .setContentText("It's time for your reminder!")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+//                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .addAction(R.drawable.ic_snooze, "Snooze", snoozePendingIntent)
                 .addAction(R.drawable.ic_done, "Complete", completePendingIntent);
