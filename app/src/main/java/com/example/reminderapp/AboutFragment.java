@@ -17,8 +17,8 @@ public class AboutFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        Log.d("AboutFragment", "About page opened!");
-        Log.d("AboutFragment", "AboutFragment loaded");
+
         return inflater.inflate(R.layout.fragment_about, container, false);
+
     }
 }

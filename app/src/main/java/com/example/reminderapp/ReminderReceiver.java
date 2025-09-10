@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.util.Log;
+import android.widget.EditText;
 import android.widget.Toast;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -21,23 +22,66 @@ import androidx.core.app.NotificationCompat;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import android.app.AlarmManager;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class ReminderReceiver extends BroadcastReceiver {
-
     private static final String CHANNEL_ID = "REMINDER_CHANNEL";
     private static final int NOTIFICATION_ID = 100;
+    private static final int REMINDER_REQUEST_CODE = 100;
+    private static final String TAG = "ReminderReciever";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        // Debug: Check trigger
-        Toast.makeText(context, "Reminder Triggered!", Toast.LENGTH_SHORT).show();
-        Log.d("ReminderReceiver", "Reminder Triggered");
+//        int intervalMinutes = intent.getIntExtra("intervalMinutes", 0);
+//
+//        // Debug
+//        Toast.makeText(context, "Reminder Triggered! Interval: " + intervalMinutes + " min", Toast.LENGTH_SHORT).show();
+//        Log.d("ReminderReceiver", "Reminder Triggered with interval: " + intervalMinutes);
 
-        // Save event in Firestore
         saveReminderEvent(context, "Reminder Triggered");
+
+
+
+//        long newTime = System.currentTimeMillis() + (2 * 60 * 1000);
+
+
+//        int intervalIntent = dataManager.getintervalIntent(intervalMinutes);
+
+        Intent reminderIntent = new Intent(context, ReminderReceiver.class);
+        int intervalMinutes = intent.getIntExtra("intervalMinutes",-1);
+        Log.i(TAG, "Interval Minutes : "+intervalMinutes); // Info message
+
+        Toast.makeText(context, "Reminder Triggered! Interval: " + intervalMinutes + " min", Toast.LENGTH_SHORT).show();
+
+        long newTime = System.currentTimeMillis() + (intervalMinutes * 60 * 1000);
+        reminderIntent.putExtra("intervalMinutes", intervalMinutes);
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                context,
+                REMINDER_REQUEST_CODE,
+                reminderIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        newTime,
+                        pendingIntent
+                );
+            } else {
+                alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        newTime,
+                        pendingIntent
+                );
+            }
+        }
 
         // --- Create Notification Channel ---
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -54,6 +98,7 @@ public class ReminderReceiver extends BroadcastReceiver {
 
         // --- Snooze Action ---
         Intent snoozeIntent = new Intent(context, SnoozeReceiver.class);
+        snoozeIntent.putExtra("intervalMinutes", intervalMinutes);
         PendingIntent snoozePendingIntent = PendingIntent.getBroadcast(
                 context,
                 1,
@@ -86,30 +131,31 @@ public class ReminderReceiver extends BroadcastReceiver {
         }
     }
 
-    private void saveReminderEvent(Context context, String action) {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            return; // not signed in
-        }
 
-        // Get reference to Firebase Realtime Database
-        DatabaseReference dbRef = FirebaseDatabase.getInstance()
-                .getReference("users")
-                .child(user.getUid())
-                .child("reminderEvents");
+    private void saveReminderEvent(Context context, String action){
+    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+    if (user == null) {
+        return; // not signed in
+    }
 
-        // Create reminder event
-        Map<String, Object> event = new HashMap<>();
-        event.put("action", action);
-        event.put("timestamp", System.currentTimeMillis());
+    // Get reference to Firebase Realtime Database
+    DatabaseReference dbRef = FirebaseDatabase.getInstance()
+            .getReference("users")
+            .child(user.getUid())
+            .child("reminderEvents");
 
-        // Save event
-        dbRef.push().setValue(event)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(context, "Event saved!", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(context, "Error saving event: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
-    }}
+    // Create reminder event
+    Map<String, Object> event = new HashMap<>();
+    event.put("action", action);
+    event.put("timestamp", System.currentTimeMillis());
+
+    // Save event
+    dbRef.push().setValue(event)
+            .addOnSuccessListener(aVoid -> {
+                Toast.makeText(context, "Event saved!", Toast.LENGTH_SHORT).show();
+            })
+            .addOnFailureListener(e -> {
+                Toast.makeText(context, "Error saving event: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            });
+}}
 
