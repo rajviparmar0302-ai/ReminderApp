@@ -5,6 +5,11 @@
     android:padding="16dp"
     android:background="@android:color/white">
 
+    <FrameLayout
+        android:id="@+id/fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,24 +23,18 @@
             android:layout_gravity="center"
             android:layout_marginBottom="16dp"
             android:contentDescription="App Logo"
-            android:src="@drawable/ic_launcher_foreground" />
+            android:src="@drawable/ic_reminder_logo" />
 
-        <!-- App Title -->
-<!--        <TextView-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_gravity="center"-->
-<!--            android:layout_marginBottom="16dp"-->
-<!--            android:text="ReminderApp"-->
-<!--            android:textSize="24sp"-->
-<!--            android:textStyle="bold" />-->
+<!--         App Title -->
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="This is the About page of ReminderApp"
-            android:textSize="18sp"
-            android:gravity="center"
-            android:padding="16dp"/>
+            android:layout_gravity="center"
+            android:layout_marginBottom="16dp"
+            android:text="ReminderApp"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
 
         <!-- App Description -->
         <TextView

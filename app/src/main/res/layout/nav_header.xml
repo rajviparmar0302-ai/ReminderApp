@@ -22,7 +22,8 @@
             android:layout_height="80dp"
             android:src="@drawable/ic_user_placeholder"
             android:scaleType="centerCrop"
-            android:contentDescription="@string/user_image" />
+            android:contentDescription="@string/user_image"
+            app:shapeAppearanceOverlay="@style/CircleImage"/>
 
         <!-- User Name -->
         <TextView

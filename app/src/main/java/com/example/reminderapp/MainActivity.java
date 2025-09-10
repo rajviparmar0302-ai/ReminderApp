@@ -4,6 +4,8 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
+
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -92,6 +94,8 @@ public class MainActivity extends AppCompatActivity {
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
         Intent intent = new Intent(this, ReminderReceiver.class);
+        intent.putExtra("intervalMinutes", 2);
+
         pendingIntent = PendingIntent.getBroadcast(
                 this,
                 REMINDER_REQUEST_CODE,
@@ -123,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
 //
 //            topAppBar.setNavigationOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
 
-//            NavigationView navigationView = findViewById(R.id.navigation_view);
+//          NavigationView navigationView = findViewById(R.id.nav_menu);
             navigationView.setNavigationItemSelectedListener(item -> {
                 Fragment selectedFragment = null;
 
@@ -135,7 +139,12 @@ public class MainActivity extends AppCompatActivity {
                 } else if (id == R.id.nav_settings) {
                     selectedFragment = new SettingsFragment();
                 } else if (id == R.id.nav_about) {
-                    selectedFragment = new AboutFragment();
+                    getSupportFragmentManager()
+                            .beginTransaction()
+                            .replace(R.id.fragment_container, new AboutFragment())
+                            .addToBackStack(null)
+                            .commit();
+
 
                 } else if (id == R.id.nav_logout) {
                     Toast.makeText(this, "Logout clicked", Toast.LENGTH_SHORT).show();
@@ -210,18 +219,19 @@ public class MainActivity extends AppCompatActivity {
         long intervalMilli = intervalMinutes * 60L * 1000L;
         long triggerTime = System.currentTimeMillis() + intervalMilli;
 
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (alarmManager.canScheduleExactAlarms()) {
-                    setExactAlarm(triggerTime, intervalMilli);
+                    setExactAlarm(triggerTime, intervalMinutes);
                 } else {
                     Toast.makeText(this, "Enable exact alarms in settings.", Toast.LENGTH_LONG).show();
-                    Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
+                    Intent reminderIntent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                    reminderIntent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(reminderIntent);
                 }
             } else {
-                setExactAlarm(triggerTime, intervalMilli);
+                setExactAlarm(triggerTime, intervalMinutes);
             }
 
             saveReminderToRealtimeDB(intervalMinutes, triggerTime);
@@ -229,15 +239,27 @@ public class MainActivity extends AppCompatActivity {
         } catch (SecurityException e) {
             Toast.makeText(this, "Permission denied for exact alarms", Toast.LENGTH_SHORT).show();
         }
+
     }
 
-    private void setExactAlarm(long triggerTime, long intervalMilli) {
-        alarmManager.setRepeating(
+    private void setExactAlarm(long triggerTime, int interval) {
+
+        Intent intent = new Intent(MainActivity.this, ReminderReceiver.class);
+        intent.putExtra("intervalMinutes", interval); // store minutes
+
+        // Recreate PendingIntent with FLAG_UPDATE_CURRENT so extras get updated
+        pendingIntent = PendingIntent.getBroadcast(
+                this,
+                REMINDER_REQUEST_CODE,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+
+        alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime,
-                intervalMilli,
-                pendingIntent
-        );
+                pendingIntent);
         Toast.makeText(this, "Reminder set successfully!", Toast.LENGTH_SHORT).show();
     }
 

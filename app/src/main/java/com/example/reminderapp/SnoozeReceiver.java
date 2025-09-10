@@ -9,19 +9,19 @@ import android.os.Build;
 import android.widget.Toast;
 import android.util.Log;
 
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
-
 import java.util.HashMap;
 import java.util.Map;
-
+import android.content.Context;
+import android.content.Intent;
 public class SnoozeReceiver extends BroadcastReceiver {
 
     private static final int REMINDER_REQUEST_CODE = 100;
+    private static final String TAG = "SnoozeReciever";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -30,6 +30,12 @@ public class SnoozeReceiver extends BroadcastReceiver {
         // Reschedule alarm for +5 minutes
         long snoozeTime = System.currentTimeMillis() + (5 * 60 * 1000);
         Intent reminderIntent = new Intent(context, ReminderReceiver.class);
+
+        int intervalMinutes = intent.getIntExtra("intervalMinutes",-1);
+        Log.i(TAG, "Interval Minutes : "+intervalMinutes); // Info message
+//        Toast.makeText(context, "Reminder Triggered! Interval: " + intervalMinutes + " min", Toast.LENGTH_SHORT).show();
+        long time = System.currentTimeMillis() + (intervalMinutes * 60 * 1000);
+        reminderIntent.putExtra("intervalMinutes", intervalMinutes);
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -40,41 +46,42 @@ public class SnoozeReceiver extends BroadcastReceiver {
 
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager != null) {
-            alarmManager.cancel(pendingIntent); // cancel old one
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, snoozeTime, pendingIntent);
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        snoozeTime,
+                        pendingIntent
+                );
             } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, snoozeTime, pendingIntent);
+                alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP, snoozeTime, pendingIntent
+                );
             }
         }
 
-        // Save event in Firestore
+        // Save event in Firebase
         saveReminderEvent("Reminder Snoozed (5 mins)");
     }
+
+//
 
     private void saveReminderEvent(String action) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) return;
 
-        // Get database reference
         DatabaseReference dbRef = FirebaseDatabase.getInstance()
                 .getReference("users")
                 .child(user.getUid())
                 .child("reminderEvents");
 
-        // Create event object
         Map<String, Object> event = new HashMap<>();
         event.put("action", action);
         event.put("timestamp", System.currentTimeMillis());
 
-        // Push event to Realtime Database
         dbRef.push().setValue(event)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d("RealtimeDB", "Event saved: " + action);
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("RealtimeDB", "Error saving event", e);
-                });
+                .addOnSuccessListener(aVoid ->
+                        Log.d("RealtimeDB", "Event saved: " + action))
+                .addOnFailureListener(e ->
+                        Log.e("RealtimeDB", "Error saving event", e));
     }
-
 }
